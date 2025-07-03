@@ -2,7 +2,6 @@
 
 from .config import Config, get_config
 
-# Provide a convenient singleton instance
-config = get_config()
+# Use get_config() function when you need the config instance
 
-__all__ = ["Config", "get_config", "config"]
+__all__ = ["Config", "get_config"]
