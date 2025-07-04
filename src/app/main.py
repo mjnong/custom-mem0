@@ -1,15 +1,15 @@
-from contextlib import asynccontextmanager, AsyncExitStack
+import asyncio
 import logging
 import signal
 import sys
-import asyncio
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
-from app.memory.memory import get_memory_service
-from config import get_config
-
+from src.app.memory.memory import get_memory_service
+from src.config.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +21,14 @@ async def app_lifespan(app: FastAPI):
     try:
         async with AsyncExitStack() as stack:
             # Add more context managers as needed
-            await stack.enter_async_context(get_memory_service().mcp.session_manager.run())
+            await stack.enter_async_context(
+                get_memory_service().mcp.session_manager.run()
+            )
             yield
     finally:
         # Cleanup on shutdown
         pass
+
 
 def handle_shutdown_signal(signum, frame):
     """Handle shutdown signals"""
@@ -34,8 +37,35 @@ def handle_shutdown_signal(signum, frame):
     # Exit gracefully
     sys.exit(0)
 
+
 # Initialize FastAPI app
-app = FastAPI(lifespan=app_lifespan)
+app = FastAPI(
+    title="Custom Mem0 MCP Server",
+    description="A custom Mem0 implementation with MCP (Model Context Protocol) support",
+    version="0.1.0",
+    lifespan=app_lifespan,
+)
+
+
+# Health check endpoint
+@app.get("/health", response_class=JSONResponse)
+async def health_check():
+    """Health check endpoint for container orchestration"""
+    return {"status": "healthy", "service": "custom-mem0-mcp"}
+
+
+# Root endpoint
+@app.get("/", response_class=JSONResponse)
+async def root():
+    """Root endpoint with service information"""
+    return {
+        "service": "Custom Mem0 MCP Server",
+        "version": "0.1.0",
+        "backend": get_config().backend,
+        "status": "running",
+    }
+
+
 app.mount("/memory", get_memory_service().mcp.streamable_http_app())
 
 
@@ -45,7 +75,7 @@ async def main():
     signal.signal(signal.SIGTERM, handle_shutdown_signal)
 
     # Add additional signal handling for development reloads
-    if hasattr(signal, 'SIGHUP'):
+    if hasattr(signal, "SIGHUP"):
         signal.signal(signal.SIGHUP, handle_shutdown_signal)
 
     config = uvicorn.Config(
@@ -54,13 +84,9 @@ async def main():
         port=get_config().fastapi_port,
         ws_ping_interval=10,
         ws_ping_timeout=20,
-        #reload=True,
         log_level=get_config().memory_log_level,
-        # Add reload dirs to better control when reloading happens
-        reload_dirs=["src/"],
-        use_colors= True,
-        # Exclude certain patterns that might cause unnecessary reloads
-        reload_excludes=["**/.git/**", "**/__pycache__/**", "**/logs/**", "**/scripts/**"],
+        use_colors=True,
+        access_log=True,
     )
     server = uvicorn.Server(config)
 

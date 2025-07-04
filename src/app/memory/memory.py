@@ -1,13 +1,16 @@
 import functools
-from mem0 import AsyncMemory
-from mem0.configs.base import MemoryConfig, GraphStoreConfig
-from mem0.graphs.configs import Neo4jConfig, LlmConfig
-from mem0.embeddings.configs import EmbedderConfig
-from config.config import get_config
-from mem0.vector_stores.configs import VectorStoreConfig
-from mcp.server.fastmcp import FastMCP, Context
 from typing import Annotated
+
+from mcp.server.fastmcp import Context, FastMCP
+from mem0 import AsyncMemory
+from mem0.configs.base import GraphStoreConfig, MemoryConfig
+from mem0.configs.vector_stores.pgvector import PGVectorConfig
+from mem0.embeddings.configs import EmbedderConfig
+from mem0.graphs.configs import LlmConfig, Neo4jConfig
+from mem0.vector_stores.configs import VectorStoreConfig
 from pydantic import Field
+
+from src.config.config import get_config
 
 
 class MemoryMCP:
@@ -18,14 +21,28 @@ class MemoryMCP:
         match get_config().backend:
             case "neo4j":
                 self._config = MemoryConfig(
+                    vector_store=VectorStoreConfig(
+                        provider="pgvector",  # Use pgvector for Neo4j
+                        config=PGVectorConfig(
+                            host=get_config().postgres_host,
+                            port=get_config().postgres_port,
+                            dbname=get_config().postgres_database,
+                            user=get_config().postgres_user,
+                            password=get_config().postgres_password,
+                            collection_name=get_config().postgres_collection_name,
+                            diskann=True,  # Use DiskANN for efficient vector search
+                            hnsw=False,  # Disable HNSW for Neo4j
+                            embedding_model_dims=1536,  # Default dimensions for OpenAI embeddings
+                        ).model_dump(),
+                    ),
                     graph_store=GraphStoreConfig(
                         provider="neo4j",
                         config=Neo4jConfig(
-                            url=f"neo4j://{get_config().neo4j_ip}", # URI format for Neo4j, when SSL/TLS is not used else it should be "neo4j+s://"
+                            url=f"bolt://{get_config().neo4j_ip}",  # URI format for Neo4j, when SSL/TLS is not used else it should be "neo4j+s://"
                             username=get_config().neo4j_username,
                             password=get_config().neo4j_password,
-                            database=get_config().neo4j_database,
-                            base_label=True,
+                            database=None,
+                            base_label=None,
                         ),
                     ),
                 )
@@ -57,14 +74,16 @@ class MemoryMCP:
                 "model": get_config().openai_embedding_model,
             },
         )
+        self._config.history_db_path = get_config().history_db_path
+
         self._memory = AsyncMemory(config=self._config)
-        
+
         # Register MCP tools and resources after initialization
         self._register_mcp_handlers()
 
     def _register_mcp_handlers(self):
         """Register MCP tools and resources after initialization."""
-        
+
         # Create closure functions that have access to self._memory
         @self._mcp.tool(
             name="add_memory",
@@ -78,7 +97,9 @@ class MemoryMCP:
             ],
             agent_id: Annotated[
                 str | None,
-                Field(description="Optional ID of the agent associated with the memory."),
+                Field(
+                    description="Optional ID of the agent associated with the memory."
+                ),
             ] = None,
         ):
             """
@@ -97,9 +118,21 @@ class MemoryMCP:
             name="get_all_memories",
         )
         async def get_all_memories(
-            user_id: Annotated[str, Field(description="The ID of the user whose memories are to be retrieved.")],
-            agent_id: Annotated[str | None, Field(description="Optional ID of the agent associated with the memories.")] = None,
-            limit: Annotated[int, Field(description="The maximum number of memories to retrieve.")] = 100
+            user_id: Annotated[
+                str,
+                Field(
+                    description="The ID of the user whose memories are to be retrieved."
+                ),
+            ],
+            agent_id: Annotated[
+                str | None,
+                Field(
+                    description="Optional ID of the agent associated with the memories."
+                ),
+            ] = None,
+            limit: Annotated[
+                int, Field(description="The maximum number of memories to retrieve.")
+            ] = 100,
         ) -> dict:
             """
             Retrieve all memories for a user or agent.
@@ -118,8 +151,18 @@ class MemoryMCP:
             description="Delete all memories for a user or agent.",
         )
         async def delete_all_memories(
-            user_id: Annotated[str, Field(description="The ID of the user whose memories are to be deleted.")],
-            agent_id: Annotated[str | None, Field(description="Optional ID of the agent associated with the memories.")] = None
+            user_id: Annotated[
+                str,
+                Field(
+                    description="The ID of the user whose memories are to be deleted."
+                ),
+            ],
+            agent_id: Annotated[
+                str | None,
+                Field(
+                    description="Optional ID of the agent associated with the memories."
+                ),
+            ] = None,
         ):
             """
             Delete all memories for a user or agent.
@@ -136,9 +179,16 @@ class MemoryMCP:
         )
         async def search_memories(
             query: Annotated[str, Field(description="The search query.")],
-            user_id: Annotated[str, Field(description="The ID of the user performing the search.")],
+            user_id: Annotated[
+                str, Field(description="The ID of the user performing the search.")
+            ],
             ctx: Context,
-            agent_id: Annotated[str | None, Field(description="Optional ID of the agent associated with the search.")] = None,
+            agent_id: Annotated[
+                str | None,
+                Field(
+                    description="Optional ID of the agent associated with the search."
+                ),
+            ] = None,
         ) -> dict:
             """
             Search for memories matching the query.
@@ -148,7 +198,9 @@ class MemoryMCP:
             :param agent_id: Optional ID of the agent associated with the search.
             :return: List of matching memories.
             """
-            await ctx.info(f"Searching memories for user {user_id} with agent {agent_id}")
+            await ctx.info(
+                f"Searching memories for user {user_id} with agent {agent_id}"
+            )
             return await self._memory.search(query, user_id=user_id, agent_id=agent_id)
 
         @self._mcp.tool(
@@ -157,7 +209,9 @@ class MemoryMCP:
             description="Update a specific memory by its ID.",
         )
         async def update_memory(
-            memory_id: Annotated[str, Field(description="The ID of the memory to update.")],
+            memory_id: Annotated[
+                str, Field(description="The ID of the memory to update.")
+            ],
             data: Annotated[str, Field(description="The new content for the memory.")],
             ctx: Context,
         ) -> dict:
@@ -169,14 +223,16 @@ class MemoryMCP:
             """
             await ctx.info(f"Updating memory with ID {memory_id}")
             return await self._memory.update(memory_id, data)
-        
+
         @self._mcp.tool(
             name="delete_memory",
             title="Delete Memory",
             description="Delete a specific memory by its ID.",
         )
         async def delete_memory(
-            memory_id: Annotated[str, Field(description="The ID of the memory to delete.")],
+            memory_id: Annotated[
+                str, Field(description="The ID of the memory to delete.")
+            ],
         ):
             """
             Delete a specific memory by its ID.

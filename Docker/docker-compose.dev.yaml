@@ -1,0 +1,15 @@
+name: custom-mem0-mcp-dev
+
+services:
+  mem0:
+    build:
+      target: development  # Use development stage
+    volumes:
+      - ..:/app  # Mount source code for development
+      - ../history:/app/history
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - FASTAPI_HOST=0.0.0.0
+      - FASTAPI_PORT=8000
+    command: ["python", "-m", "uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

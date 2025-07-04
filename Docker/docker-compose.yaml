@@ -1,0 +1,87 @@
+name: custom-mem0-mcp
+
+services:
+  mem0:
+    build:
+      context: ..  # Set context to parent directory
+      dockerfile: Docker/Dockerfile
+      target: production  # Use production stage by default
+    ports:
+      - "8888:8000"
+    env_file:
+      - ../.env
+    networks:
+      - mem0_network
+    volumes:
+      - ../history:/app/history  # History db location
+    depends_on:
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+
+  postgres:
+    image: ankane/pgvector:latest
+    restart: unless-stopped
+    shm_size: "256mb"
+    networks:
+      - mem0_network
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-d", "postgres", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - postgres_db:/var/lib/postgresql/data
+    ports:
+      - "8432:5432"
+  neo4j:
+    image: neo4j:latest
+    restart: unless-stopped
+    networks:
+      - mem0_network
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    ports:
+      - "8474:7474" # HTTP
+      - "8687:7687" # Bolt
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    environment:
+      - NEO4J_AUTH=neo4j/mem0graph
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_memory_heap_initial__size=512M
+      - NEO4J_dbms_memory_heap_max__size=1G
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  postgres_db:
+
+networks:
+  mem0_network:
+    driver: bridge

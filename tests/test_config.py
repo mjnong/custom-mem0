@@ -3,16 +3,18 @@
 Pytest test suite for Config validation.
 """
 
-import pytest
-import sys
 import os
+import sys
 from unittest.mock import patch
 
+import pytest
+
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+
+from pydantic import ValidationError
 
 from src.config.config import Config
-from pydantic import ValidationError
 
 
 class TestConfigValidation:
@@ -22,7 +24,7 @@ class TestConfigValidation:
         """Test that invalid backend values are rejected."""
         with pytest.raises(ValidationError) as exc_info:
             Config(backend="invalid_backend")
-        
+
         assert "backend must be one of" in str(exc_info.value)
         assert "invalid_backend" in str(exc_info.value)
 
@@ -31,17 +33,20 @@ class TestConfigValidation:
         # Test neo4j backend with minimal config
         config_neo4j = Config(backend="neo4j")
         assert config_neo4j.backend == "neo4j"
-        
+
         # Test qdrant backend with minimal config
         config_qdrant = Config(backend="qdrant")
         assert config_qdrant.backend == "qdrant"
 
-    @patch.dict(os.environ, {
-        'BACKEND': 'qdrant',
-        'QDRANT_HOST': 'my-qdrant-server',
-        'QDRANT_PORT': '6333',
-        'OPENAI_API_KEY': 'sk-real-key'
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "BACKEND": "qdrant",
+            "QDRANT_HOST": "my-qdrant-server",
+            "QDRANT_PORT": "6333",
+            "OPENAI_API_KEY": "sk-real-key",
+        },
+    )
     def test_environment_variable_override(self):
         """Test that environment variables override default values."""
         config = Config()
