@@ -566,7 +566,7 @@ When running, visit:
 
 ## 📄 License
 
-[Your License Here]
+This project is released under the [AGPL-3.0 License](LICENSE).
 
 ## 🆘 Troubleshooting
 
