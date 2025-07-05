@@ -17,7 +17,7 @@ BACKUP_DIR := backups
 BACKUP_RETENTION_DAYS := 30
 TIMESTAMP := $(shell date +%Y%m%d_%H%M%S)
 
-.PHONY: help install install-dev clean build build-dev up up-dev down logs test lint format check health status mcp-inspect backup backup-postgres backup-neo4j backup-history backup-validate backup-list backup-cleanup backup-automated restore-postgres restore-neo4j backup-to-cloud backup-size backup-test backup-schedule-info dev-setup prod-setup deploy-prod setup-monitoring backup-monitor shell db-shell neo4j-shell restart
+.PHONY: help uv-update-lock install install-dev clean build build-dev up up-dev down logs test lint format check health status mcp-inspect backup backup-postgres backup-neo4j backup-history backup-validate backup-list backup-cleanup backup-automated restore-postgres restore-neo4j backup-to-cloud backup-size backup-test backup-schedule-info dev-setup prod-setup deploy-prod setup-monitoring backup-monitor shell db-shell neo4j-shell restart
 
 # Default target
 .DEFAULT_GOAL := help
@@ -37,6 +37,12 @@ help: ## 📚 Show this help message
 install: ## 📦 Install production dependencies
 	@echo "$(BLUE)Installing production dependencies...$(RESET)"
 	@uv sync --frozen --no-dev --prerelease=allow
+
+uv-update-lock: ## 🔄 Update uv lock file with latest dependencies
+	@echo "$(BLUE) Updating Python dependencies with uv...$(RESET)"
+	@uv lock --upgrade --prerelease=allow && echo "$(GREEN) Dependencies updated successfully$(RESET)"
+	@uv sync --upgrade --prerelease=allow && echo "$(GREEN) Dependencies synchronized successfully$(RESET)"
+	@echo "$(GREEN) Lock file updated. Please commit changes to 'uv.lock' if necessary.$(RESET)"
 
 install-dev: ## 🔧 Install development dependencies
 	@echo "$(BLUE)Installing development dependencies...$(RESET)"
