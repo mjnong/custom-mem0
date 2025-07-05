@@ -2,6 +2,89 @@
 
 A production-ready custom [Mem0](https://mem0.ai/) implementation with [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) support, allowing AI agents and applications to maintain persistent memories.
 
+## 📚 Table of Contents
+
+- [Custom Mem0 MCP Server](#custom-mem0-mcp-server)
+  - [📚 Table of Contents](#-table-of-contents)
+  - [⚡ Quick Navigation](#-quick-navigation)
+  - [🚀 What This Project Does](#-what-this-project-does)
+    - [Core Features](#core-features)
+  - [🏗️ Architecture](#️-architecture)
+  - [🛠️ Quick Start](#️-quick-start)
+    - [Prerequisites](#prerequisites)
+    - [Development Setup](#development-setup)
+  - [🚀 Production Deployment](#-production-deployment)
+    - [Automated Production Deployment](#automated-production-deployment)
+    - [Environment Considerations](#environment-considerations)
+    - [Health Monitoring](#health-monitoring)
+  - [💾 Backup \& Recovery](#-backup--recovery)
+    - [Backup Types](#backup-types)
+      - [Production Backup Schedule](#production-backup-schedule)
+      - [Backup Storage Structure](#backup-storage-structure)
+      - [Backup Best Practices](#backup-best-practices)
+  - [📋 Available Commands](#-available-commands)
+  - [🔧 Configuration](#-configuration)
+      - [Neo4j Backend](#neo4j-backend)
+      - [Qdrant Backend](#qdrant-backend)
+  - [🤖 MCP Integration](#-mcp-integration)
+  - [🧪 Testing \& Development](#-testing--development)
+  - [🚀 Production Deployment (Additional Info)](#-production-deployment-additional-info)
+  - [🔒 Security](#-security)
+  - [📚 API Documentation](#-api-documentation)
+  - [🤝 Contributing](#-contributing)
+  - [📄 License](#-license)
+  - [🆘 Troubleshooting](#-troubleshooting)
+    - [Service won't start](#service-wont-start)
+    - [Database connection issues](#database-connection-issues)
+    - [Memory operations failing](#memory-operations-failing)
+  - [🔗 Quick Links](#-quick-links)
+
+---
+
+## ⚡ Quick Navigation
+
+<details>
+<summary><strong>🚀 Get Started Quickly</strong></summary>
+
+```bash
+# Development setup
+git clone <your-repo>
+cd custom-mem0
+make dev-setup
+make up-dev
+
+# VS Code MCP Integration
+# Add to settings.json:
+"mcp": {
+    "servers": {
+        "memory-mcp": {
+            "url": "http://localhost:8888/memory/mcp/sse"
+        }
+    }
+}
+```
+
+**Access Points:**
+- API: http://localhost:8888
+- Health: http://localhost:8888/health
+- Neo4j: http://localhost:8474
+
+</details>
+
+<details>
+<summary><strong>🔧 Most Common Commands</strong></summary>
+
+```bash
+make up-dev              # Start development
+make health              # Check status
+make logs                # View logs
+make backup              # Backup data
+make mcp-inspect         # Debug MCP
+make test                # Run tests
+```
+
+</details>
+
 ## 🚀 What This Project Does
 
 This project provides a **custom memory service** that:
@@ -118,11 +201,12 @@ This project provides a **custom memory service** that:
 
 ## 💾 Backup & Recovery
 
-### Production Backup Strategy
+<details>
+<summary><strong>🔒 Production Backup Strategy</strong></summary>
 
 The system includes comprehensive backup functionality for production environments:
 
-#### Backup Types
+### Backup Types
 
 1. **Application-Aware Backups**
    - PostgreSQL: Uses `pg_dump` for consistent database snapshots
@@ -137,7 +221,10 @@ The system includes comprehensive backup functionality for production environmen
    make backup-monitor      # Check backup health
    ```
 
-#### Backup Commands
+</details>
+
+<details>
+<summary><strong>💻 Backup Commands</strong></summary>
 
 ```bash
 # Create backups
@@ -157,7 +244,10 @@ make restore-postgres BACKUP_FILE=postgres_20241225_120000.sql.gz
 make restore-neo4j BACKUP_FILE=neo4j_20241225_120000.tar.gz
 ```
 
-#### Backup Monitoring
+</details>
+
+<details>
+<summary><strong>🔍 Backup Monitoring</strong></summary>
 
 The system includes automated backup monitoring:
 
@@ -178,7 +268,10 @@ Set up automated backups with cron:
 0 */6 * * * cd /path/to/custom-mem0 && make backup-monitor >> logs/monitor.log 2>&1
 ```
 
-#### Cloud Backup Integration
+</details>
+
+<details>
+<summary><strong>☁️ Cloud Backup Integration</strong></summary>
 
 Upload backups to cloud storage:
 
@@ -207,7 +300,10 @@ backups/
     └── history_20241225_140000.tar.gz
 ```
 
-#### Disaster Recovery
+</details>
+
+<details>
+<summary><strong>🚨 Disaster Recovery</strong></summary>
 
 1. **Full System Recovery**
    ```bash
@@ -239,6 +335,8 @@ backups/
 - **Documentation**: Keep recovery procedures documented and accessible
 - **Security**: Encrypt backups containing sensitive data
 
+</details>
+
 ## 📋 Available Commands
 
 Run `make help` to see all available commands:
@@ -257,7 +355,8 @@ make backup              # Backup data volumes
 
 ## 🔧 Configuration
 
-### Environment Variables
+<details>
+<summary><strong>🌍 Environment Variables</strong></summary>
 
 Key configuration options in `.env`:
 
@@ -287,21 +386,29 @@ FASTAPI_PORT=8000
 MEMORY_LOG_LEVEL="info"
 ```
 
-### Backend Options
+</details>
+
+<details>
+<summary><strong>🗄️ Backend Options</strong></summary>
 
 #### Neo4j Backend
+
 - **Best for**: Complex relationships, graph queries, knowledge graphs
 - **Features**: APOC plugins, relationship traversal, graph algorithms
 - **Vector Store**: pgvector for embeddings
 
-#### Qdrant Backend  
+#### Qdrant Backend
+
 - **Best for**: Pure vector similarity search, simple deployments
 - **Features**: High-performance vector search, filtering, collections
 - **Vector Store**: Built-in Qdrant vectors
 
+</details>
+
 ## 🤖 MCP Integration
 
-### Available Tools
+<details>
+<summary><strong>🛠️ Available Tools</strong></summary>
 
 - `add_memory`: Store new memories
 - `search_memories`: Find memories by similarity
@@ -309,11 +416,42 @@ MEMORY_LOG_LEVEL="info"
 - `delete_memory`: Remove specific memories
 - `delete_all_memories`: Clear all memories for a user/agent
 
-### Available Resources
+</details>
+
+<details>
+<summary><strong>📦 Available Resources</strong></summary>
 
 - `memories://{user_id}/{agent_id}/{limit}`: Retrieve all memories
 
-### Example Usage
+</details>
+
+<details>
+<summary><strong>💻 VS Code Integration</strong></summary>
+
+To use this MCP server with VS Code Copilot, add the following configuration to your VS Code `settings.json`:
+
+```json
+"mcp": {
+    "servers": {
+        "memory-mcp": {
+            "url": "http://localhost:8888/memory/mcp/sse"
+        }
+    }
+}
+```
+
+Once configured, you can:
+
+- **Reference tools**: Use `#` to access memory tools directly in VS Code
+- **Custom instructions**: Write natural language instructions to efficiently interact with the memory system
+- **Seamless integration**: The memory tools will be available alongside other Copilot features
+
+Make sure your MCP server is running (`make up-dev` or `make up`) before using it in VS Code.
+
+</details>
+
+<details>
+<summary><strong>💡 Example Usage</strong></summary>
 
 ```python
 # Add a memory
@@ -330,9 +468,13 @@ results = await memory_client.search_memories(
 )
 ```
 
+</details>
+
 ## 🧪 Testing & Development
 
-### Running Tests
+<details>
+<summary><strong>🧪 Running Tests</strong></summary>
+
 ```bash
 make test                # Run all tests
 make lint                # Check code style
@@ -340,7 +482,11 @@ make format              # Format code
 make check               # Run all checks
 ```
 
-### Debugging
+</details>
+
+<details>
+<summary><strong>🐛 Debugging</strong></summary>
+
 ```bash
 make logs SERVICE=mem0   # View specific service logs
 make shell               # Access container shell
@@ -349,33 +495,51 @@ make neo4j-shell         # Access Neo4j
 make mcp-inspect         # Debug MCP protocol
 ```
 
-### Development Features
+</details>
+
+<details>
+<summary><strong>⚡ Development Features</strong></summary>
+
 - **Hot Reload**: Code changes automatically restart the server
 - **Volume Mounting**: Live code editing without rebuilds
 - **Debug Logging**: Detailed logs for development
 - **MCP Inspector**: Visual debugging of MCP protocol
 
-## 🚀 Production Deployment
+</details>
 
-### Docker Production
+## 🚀 Production Deployment (Additional Info)
+
+<details>
+<summary><strong>🐳 Docker Production</strong></summary>
+
 ```bash
 make prod-setup
 make up
 make health
 ```
 
-### Environment Considerations
+</details>
+
+<details>
+<summary><strong>⚙️ Environment Considerations</strong></summary>
+
 - Use strong passwords for databases
 - Set proper OpenAI API keys
 - Configure appropriate resource limits
 - Set up monitoring and alerting
 - Regular backups with `make backup`
 
-### Health Monitoring
+</details>
+
+<details>
+<summary><strong>💓 Health Monitoring</strong></summary>
+
 - Health endpoint: `/health`
 - Container health checks included
 - Graceful shutdown handling
 - Structured logging for observability
+
+</details>
 
 ## 🔒 Security
 
@@ -406,33 +570,49 @@ When running, visit:
 
 ## 🆘 Troubleshooting
 
-### Common Issues
+<details>
+<summary><strong>🔧 Common Issues</strong></summary>
 
-**Service won't start**
+### Service won't start
+
 ```bash
 make logs                # Check logs
 make health              # Check health status
 ```
 
-**Database connection issues**
+### Database connection issues
+
 ```bash
 make status              # Check container status
 make db-shell            # Test database access
 ```
 
-**Memory operations failing**
+### Memory operations failing
+
 ```bash
 make mcp-inspect         # Debug MCP protocol
 curl http://localhost:8888/health  # Check API health
 ```
 
-### Getting Help
+</details>
+
+<details>
+<summary><strong>🆘 Getting Help</strong></summary>
 
 - Check logs with `make logs`
 - Use MCP inspector with `make mcp-inspect`
 - Review health status with `make health`
 - Access container shell with `make shell`
 
+</details>
+
 ---
 
-**Built with ❤️ using Mem0, MCP, FastAPI, and Docker**
+## 🔗 Quick Links
+
+- [📚 Back to Table of Contents](#-table-of-contents)
+- [⚡ Quick Navigation](#-quick-navigation)
+- [🛠️ Quick Start](#️-quick-start)
+- [🤖 MCP Integration](#-mcp-integration)
+
+---
