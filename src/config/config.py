@@ -23,13 +23,12 @@ class LogLevel(StrEnum):
 
 class Config(BaseSettings):
     # General configuration
-    backend: str = "neo4j"  # Options: "neo4j",
+    backend: str = "pgvector"  # Options: "pgvector", "qdrant"
     history_db_path: str = "memory.db"  # Default path for the history database
 
-    # "qdrant"
+    # Qdrant configuration
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
-    qdrant_api_key: str = ""
 
     # Neo4j configuration
     neo4j_ip: str = "localhost"
@@ -77,7 +76,7 @@ class Config(BaseSettings):
     @field_validator("backend")
     @classmethod
     def validate_backend(cls, v: str) -> str:
-        allowed_backends = {"neo4j", "qdrant"}
+        allowed_backends = {"pgvector", "qdrant"}
         if v not in allowed_backends:
             raise ValueError(f"backend must be one of {allowed_backends}, got '{v}'")
         return v
@@ -98,16 +97,16 @@ class Config(BaseSettings):
             )
             return self
 
-        if self.backend == "neo4j":
-            # Validate Neo4j required fields
-            if not self.neo4j_ip or self.neo4j_ip == "localhost":
-                pass  # localhost is acceptable for development
-            if not self.neo4j_username:
-                raise ValueError("neo4j_username is required when backend is 'neo4j'")
-            if not self.neo4j_password or self.neo4j_password == "password":
-                raise ValueError(
-                    "neo4j_password must be set to a secure value when backend is 'neo4j'"
-                )
+        if self.backend == "pgvector":
+            # Validate PostgreSQL required fields
+            if not self.postgres_host:
+                raise ValueError("postgres_host is required when backend is 'pgvector'")
+            if not self.postgres_user:
+                raise ValueError("postgres_user is required when backend is 'pgvector'")
+            if not self.postgres_password or self.postgres_password == "postgres":
+                pass  # Allow default password for development
+            if self.postgres_port <= 0 or self.postgres_port > 65535:
+                raise ValueError("postgres_port must be a valid port number (1-65535)")
 
         elif self.backend == "qdrant":
             # Validate Qdrant required fields

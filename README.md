@@ -24,7 +24,7 @@ A production-ready custom [Mem0](https://mem0.ai/) implementation with [Model Co
       - [Backup Best Practices](#backup-best-practices)
   - [📋 Available Commands](#-available-commands)
   - [🔧 Configuration](#-configuration)
-      - [Neo4j Backend](#neo4j-backend)
+      - [PostgreSQL/pgvector Backend (Default)](#postgresqlpgvector-backend-default)
       - [Qdrant Backend](#qdrant-backend)
   - [🤖 MCP Integration](#-mcp-integration)
   - [🧪 Testing \& Development](#-testing--development)
@@ -343,7 +343,9 @@ Run `make help` to see all available commands:
 
 ```bash
 make help                # Show all commands
-make up                  # Start production environment
+make up                  # Start production environment (default backend)
+make up-pgvector         # Start with PostgreSQL/pgvector backend
+make up-qdrant           # Start with Qdrant backend
 make up-dev              # Start development with hot reload
 make down                # Stop all services
 make logs                # View container logs
@@ -362,7 +364,7 @@ Key configuration options in `.env`:
 
 ```bash
 # Backend Selection
-BACKEND="neo4j"  # or "qdrant"
+BACKEND="pgvector"  # or "qdrant"
 
 # OpenAI Configuration
 OPENAI_API_KEY="your-api-key"
@@ -391,17 +393,55 @@ MEMORY_LOG_LEVEL="info"
 <details>
 <summary><strong>🗄️ Backend Options</strong></summary>
 
-#### Neo4j Backend
+#### PostgreSQL/pgvector Backend (Default)
 
-- **Best for**: Complex relationships, graph queries, knowledge graphs
-- **Features**: APOC plugins, relationship traversal, graph algorithms
-- **Vector Store**: pgvector for embeddings
+- **Best for**: Traditional SQL with vector search, ACID transactions
+- **Features**: Familiar SQL interface, rich ecosystem, structured data
+- **Vector Store**: PostgreSQL with pgvector extension
+- **Graph Store**: Neo4j (shared)
 
 #### Qdrant Backend
 
-- **Best for**: Pure vector similarity search, simple deployments
-- **Features**: High-performance vector search, filtering, collections
-- **Vector Store**: Built-in Qdrant vectors
+- **Best for**: Purpose-built vector search, high performance
+- **Features**: Advanced filtering, clustering, optimized for vectors
+- **Vector Store**: Qdrant native vectors
+- **Graph Store**: Neo4j (shared)
+
+</details>
+
+<details>
+<summary><strong>🔄 Multi-Backend Setup</strong></summary>
+
+Choose your vector store backend with simple commands:
+
+```bash
+# Start with PostgreSQL/pgvector (default)
+make up-pgvector          # Production
+make up-dev-pgvector      # Development
+
+# Start with Qdrant
+make up-qdrant            # Production  
+make up-dev-qdrant        # Development
+```
+
+**Quick Setup:**
+
+```bash
+# Use pre-configured environments
+cp .env.pgvector .env     # For PostgreSQL backend
+cp .env.qdrant .env       # For Qdrant backend
+make up                   # Start with selected backend
+```
+
+**Switching Backends:**
+
+```bash
+make down                 # Stop current services
+cp .env.qdrant .env       # Switch configuration
+make up                   # Start with new backend
+```
+
+Both backends share the same Neo4j graph store and provide identical MCP tools and APIs.
 
 </details>
 

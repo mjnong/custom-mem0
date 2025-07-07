@@ -19,7 +19,7 @@ class MemoryMCP:
     def __init__(self):
         """Initialize the Memory service with the appropriate configuration based on the backend specified in the config."""
         match get_config().backend:
-            case "neo4j":
+            case "pgvector":
                 self._config = MemoryConfig(
                     vector_store=VectorStoreConfig(
                         provider="pgvector",  # Use pgvector for Neo4j
@@ -34,17 +34,7 @@ class MemoryMCP:
                             hnsw=False,  # Disable HNSW for Neo4j
                             embedding_model_dims=1536,  # Default dimensions for OpenAI embeddings
                         ).model_dump(),
-                    ),
-                    graph_store=GraphStoreConfig(
-                        provider="neo4j",
-                        config=Neo4jConfig(
-                            url=f"bolt://{get_config().neo4j_ip}",  # URI format for Neo4j, when SSL/TLS is not used else it should be "neo4j+s://"
-                            username=get_config().neo4j_username,
-                            password=get_config().neo4j_password,
-                            database=None,
-                            base_label=None,
-                        ),
-                    ),
+                    )
                 )
             case "qdrant":
                 self._config = MemoryConfig(
@@ -52,14 +42,23 @@ class MemoryMCP:
                         provider="qdrant",
                         config={
                             "host": get_config().qdrant_host,
-                            "port": get_config().qdrant_port,
-                            "api_key": get_config().qdrant_api_key,
+                            "port": get_config().qdrant_port
                         },
                     )
                 )
             case _:
                 raise ValueError(f"Unsupported backend: {get_config().backend}")
-
+        # Initialize the graph store configuration
+        self._config.graph_store = GraphStoreConfig(
+            provider="neo4j",
+            config=Neo4jConfig(
+                url=f"bolt://{get_config().neo4j_ip}",  # URI format for Neo4j, when SSL/TLS is not used else it should be "neo4j+s://"
+                username=get_config().neo4j_username,
+                password=get_config().neo4j_password,
+                database=None,
+                base_label=None,
+            ),
+        )
         self._config.llm = LlmConfig(
             provider="openai",
             config={

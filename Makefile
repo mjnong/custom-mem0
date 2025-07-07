@@ -9,8 +9,18 @@ RESET := \033[0m
 
 # Project settings
 PROJECT_NAME := custom-mem0-mcp
-DOCKER_COMPOSE := docker compose -f Docker/docker-compose.yaml
-DOCKER_COMPOSE_DEV := docker compose -f Docker/docker-compose.yaml -f Docker/docker-compose.dev.yaml
+
+# Backend configuration (can be overridden: make up BACKEND=qdrant)
+BACKEND ?= pgvector
+
+# Docker compose file selection based on backend
+ifeq ($(BACKEND),qdrant)
+    DOCKER_COMPOSE := docker compose -f Docker/docker-compose.qdrant.yaml
+    DOCKER_COMPOSE_DEV := docker compose -f Docker/docker-compose.qdrant.yaml -f Docker/docker-compose.dev.yaml
+else
+    DOCKER_COMPOSE := docker compose -f Docker/docker-compose.postgres.yaml
+    DOCKER_COMPOSE_DEV := docker compose -f Docker/docker-compose.postgres.yaml -f Docker/docker-compose.dev.yaml
+endif
 
 # Backup configuration
 BACKUP_DIR := backups
@@ -29,10 +39,12 @@ help: ## 📚 Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(YELLOW)Examples:$(RESET)"
-	@echo "  $(GREEN)make up$(RESET)          # Start production environment"
-	@echo "  $(GREEN)make up-dev$(RESET)      # Start development environment with hot reload"
-	@echo "  $(GREEN)make logs$(RESET)        # View container logs"
-	@echo "  $(GREEN)make health$(RESET)      # Check service health"
+	@echo "  $(GREEN)make up$(RESET)              # Start production environment with default backend"
+	@echo "  $(GREEN)make up-pgvector$(RESET)    # Start with PostgreSQL/pgvector backend"
+	@echo "  $(GREEN)make up-qdrant$(RESET)      # Start with Qdrant backend"
+	@echo "  $(GREEN)make up-dev$(RESET)         # Start development environment with hot reload"
+	@echo "  $(GREEN)make logs$(RESET)           # View container logs"
+	@echo "  $(GREEN)make health$(RESET)         # Check service health"
 
 install: ## 📦 Install production dependencies
 	@echo "$(BLUE)Installing production dependencies...$(RESET)"
@@ -64,18 +76,34 @@ build-dev: ## 🔨 Build development Docker images
 	@$(DOCKER_COMPOSE_DEV) build --no-cache
 	@echo "$(GREEN)✓ Development build complete$(RESET)"
 
-up: ## 🚀 Start production environment
-	@echo "$(BLUE)Starting production environment...$(RESET)"
+up: ## 🚀 Start production environment (use BACKEND=qdrant for Qdrant)
+	@echo "$(BLUE)Starting production environment with $(BACKEND) backend...$(RESET)"
 	@$(DOCKER_COMPOSE) up -d
-	@echo "$(GREEN)✓ Production environment started$(RESET)"
+	@echo "$(GREEN)✓ Production environment started with $(BACKEND) backend$(RESET)"
 	@echo "$(YELLOW)Access the service at: http://localhost:8888$(RESET)"
 
-up-dev: ## 🔧 Start development environment with hot reload
-	@echo "$(BLUE)Starting development environment...$(RESET)"
+up-dev: ## 🔧 Start development environment with hot reload (use BACKEND=qdrant for Qdrant)
+	@echo "$(BLUE)Starting development environment with $(BACKEND) backend...$(RESET)"
 	@$(DOCKER_COMPOSE_DEV) up -d
-	@echo "$(GREEN)✓ Development environment started$(RESET)"
+	@echo "$(GREEN)✓ Development environment started with $(BACKEND) backend$(RESET)"
 	@echo "$(YELLOW)Access the service at: http://localhost:8888$(RESET)"
 	@echo "$(YELLOW)Hot reload is enabled for development$(RESET)"
+
+up-pgvector: ## 🐘 Start with PostgreSQL/pgvector backend
+	@echo "$(BLUE)Starting with PostgreSQL/pgvector backend...$(RESET)"
+	@$(MAKE) up BACKEND=pgvector
+
+up-qdrant: ## 🔍 Start with Qdrant backend
+	@echo "$(BLUE)Starting with Qdrant backend...$(RESET)"
+	@$(MAKE) up BACKEND=qdrant
+
+up-dev-pgvector: ## 🐘 Start development with PostgreSQL/pgvector backend
+	@echo "$(BLUE)Starting development with PostgreSQL/pgvector backend...$(RESET)"
+	@$(MAKE) up-dev BACKEND=pgvector
+
+up-dev-qdrant: ## 🔍 Start development with Qdrant backend
+	@echo "$(BLUE)Starting development with Qdrant backend...$(RESET)"
+	@$(MAKE) up-dev BACKEND=qdrant
 
 down: ## 🛑 Stop all services
 	@echo "$(YELLOW)Stopping all services...$(RESET)"
@@ -135,18 +163,32 @@ shell: ## 🐚 Access container shell
 	@echo "$(BLUE)Accessing container shell...$(RESET)"
 	@$(DOCKER_COMPOSE) exec mem0 /bin/bash
 
-db-shell: ## 🗄️  Access database shell
+db-shell: ## 🗄️  Access database shell (PostgreSQL)
 	@echo "$(BLUE)Accessing PostgreSQL shell...$(RESET)"
 	@$(DOCKER_COMPOSE) exec postgres psql -U postgres -d postgres
+
+qdrant-shell: ## 🔍 Access Qdrant information and dashboard
+	@echo "$(BLUE)Qdrant service information:$(RESET)"
+	@echo "$(YELLOW)Dashboard: http://localhost:6333/dashboard$(RESET)"
+	@echo "$(YELLOW)Health endpoint: http://localhost:6333/health$(RESET)" 
+	@echo "$(YELLOW)Collections endpoint: http://localhost:6333/collections$(RESET)"
+	@echo "$(BLUE)Testing Qdrant connection...$(RESET)"
+	@curl -s http://localhost:6333/health 2>/dev/null && echo "$(GREEN)✓ Qdrant is healthy$(RESET)" || echo "$(RED)✗ Qdrant not accessible$(RESET)"
+	@echo "$(BLUE)Collections:$(RESET)"
+	@curl -s http://localhost:6333/collections 2>/dev/null | jq '.' 2>/dev/null || echo "Qdrant not available or jq not installed"
 
 neo4j-shell: ## 🔗 Access Neo4j shell
 	@echo "$(BLUE)Accessing Neo4j shell...$(RESET)"
 	@$(DOCKER_COMPOSE) exec neo4j cypher-shell -u neo4j -p mem0graph
 
-backup: ## 💾 Create application-aware backups (PostgreSQL + Neo4j + History)
-	@echo "$(BLUE)Creating application-aware backups...$(RESET)"
-	@mkdir -p $(BACKUP_DIR)/postgres $(BACKUP_DIR)/neo4j $(BACKUP_DIR)/history
+backup: ## 💾 Create application-aware backups (database + Neo4j + History)
+	@echo "$(BLUE)Creating application-aware backups for $(BACKEND) backend...$(RESET)"
+	@mkdir -p $(BACKUP_DIR)/database $(BACKUP_DIR)/neo4j $(BACKUP_DIR)/history
+ifeq ($(BACKEND),qdrant)
+	@make backup-qdrant
+else
 	@make backup-postgres
+endif
 	@make backup-neo4j
 	@make backup-history
 	@echo "$(GREEN)✓ All backups completed$(RESET)"
@@ -154,8 +196,13 @@ backup: ## 💾 Create application-aware backups (PostgreSQL + Neo4j + History)
 
 backup-postgres: ## 🗄️ Backup PostgreSQL with pg_dump (application-aware)
 	@echo "$(BLUE)Creating PostgreSQL backup...$(RESET)"
-	@$(DOCKER_COMPOSE) exec -T postgres pg_dump -U postgres -d postgres --no-password | gzip > $(BACKUP_DIR)/postgres/postgres_$(TIMESTAMP).sql.gz
+	@$(DOCKER_COMPOSE) exec -T postgres pg_dump -U postgres -d postgres --no-password | gzip > $(BACKUP_DIR)/database/postgres_$(TIMESTAMP).sql.gz
 	@echo "$(GREEN)✓ PostgreSQL backup created: postgres_$(TIMESTAMP).sql.gz$(RESET)"
+
+backup-qdrant: ## 🔍 Backup Qdrant data
+	@echo "$(BLUE)Creating Qdrant backup...$(RESET)"
+	@docker run --rm -v custom-mem0-mcp-qdrant_qdrant_data:/source:ro -v $(PWD)/$(BACKUP_DIR)/database:/backup alpine tar czf /backup/qdrant_$(TIMESTAMP).tar.gz -C /source .
+	@echo "$(GREEN)✓ Qdrant backup created: qdrant_$(TIMESTAMP).tar.gz$(RESET)"
 
 backup-neo4j: ## 🔗 Backup Neo4j database
 	@echo "$(BLUE)Creating Neo4j backup...$(RESET)"
@@ -185,8 +232,10 @@ backup-validate: ## ✅ Validate backup integrity
 
 backup-list: ## 📋 List all available backups
 	@echo "$(BLUE)Available backups:$(RESET)"
-	@echo "$(YELLOW)PostgreSQL backups:$(RESET)"
-	@ls -lah $(BACKUP_DIR)/postgres/ 2>/dev/null || echo "No PostgreSQL backups found"
+	@echo "$(YELLOW)Database backups (PostgreSQL):$(RESET)"
+	@ls -lah $(BACKUP_DIR)/database/*.sql.gz 2>/dev/null || echo "No PostgreSQL backups found"
+	@echo "$(YELLOW)Database backups (Qdrant):$(RESET)"
+	@ls -lah $(BACKUP_DIR)/database/*.tar.gz 2>/dev/null || echo "No Qdrant backups found"
 	@echo "$(YELLOW)Neo4j backups:$(RESET)"
 	@ls -lah $(BACKUP_DIR)/neo4j/ 2>/dev/null || echo "No Neo4j backups found"
 	@echo "$(YELLOW)History backups:$(RESET)"
